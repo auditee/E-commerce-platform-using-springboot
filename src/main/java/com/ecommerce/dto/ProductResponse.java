@@ -1,6 +1,7 @@
 package com.ecommerce.dto;
 
 import lombok.*;
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -23,12 +24,21 @@ import java.time.LocalDateTime;
  *
  * This DTO includes ALL product fields, including id, createdAt,
  * and updatedAt — because the frontend needs to see those.
+ *
+ * WHY IMPLEMENTS SERIALIZABLE?
+ *   Redis stores data as bytes (binary), not as Java objects.
+ *   To store a ProductResponse in Redis, Java must convert it
+ *   into bytes first — this is called "serialization".
+ *   To read it back, Java converts it from bytes back to a
+ *   ProductResponse — this is called "deserialization".
+ *   Without implementing Serializable, Redis cannot store
+ *   this object and will throw an error.
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProductResponse {
+public class ProductResponse implements Serializable {
 
     private Long id;
     private String name;

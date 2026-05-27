@@ -140,6 +140,18 @@
         </dependency>
 
         <!-- ======================================= -->
+        <!-- Spring Boot Starter Data Redis          -->
+        <!-- Gives us Redis caching support.         -->
+        <!-- Redis is a super-fast in-memory store   -->
+        <!-- that holds cached results so we don't   -->
+        <!-- hit the database every single time.     -->
+        <!-- ======================================= -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- ======================================= -->
         <!-- Spring Boot Starter Test                 -->
         <!-- Tools for writing automated tests.       -->
         <!-- Only used during testing, not in the     -->
