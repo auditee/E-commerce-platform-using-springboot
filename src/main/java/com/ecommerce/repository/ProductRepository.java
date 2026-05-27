@@ -1,9 +1,14 @@
 package com.ecommerce.repository;
 
 import com.ecommerce.entity.Product;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * ============================================================
@@ -61,4 +66,47 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
      * SQL:     SELECT * FROM products WHERE LOWER(name) LIKE LOWER('%phone%')
      */
     List<Product> findByNameContainingIgnoreCase(String name);
+
+    /**
+     * ============================================================
+     * findByIdForUpdate — Fetch a product WITH a database lock
+     * ============================================================
+     *
+     * WHY DO WE NEED THIS METHOD?
+     *   Imagine two users try to buy the last item at the same time:
+     *
+     *   Without locking:
+     *     User A reads stock = 1, decides "enough stock", proceeds.
+     *     User B reads stock = 1, decides "enough stock", proceeds.
+     *     User A reduces stock → stock = 0
+     *     User B reduces stock → stock = -1  ← WRONG! Negative stock!
+     *
+     *   With PESSIMISTIC_WRITE locking:
+     *     User A reads stock = 1 → MySQL LOCKS that product row.
+     *     User B tries to read the same row → BLOCKED. Must wait.
+     *     User A reduces stock → stock = 0 → commits → LOCK RELEASED.
+     *     User B reads stock = 0 → check fails → order rejected. ✅
+     *
+     * HOW DOES @Lock(LockModeType.PESSIMISTIC_WRITE) WORK?
+     *   It tells MySQL to run: SELECT ... FOR UPDATE
+     *   "FOR UPDATE" is a SQL command that places an exclusive lock
+     *   on the selected row for the duration of the current transaction.
+     *   No other transaction can read or modify that row until the
+     *   first transaction commits or rolls back.
+     *
+     * WHY USE @Query?
+     *   Spring Data JPA needs an explicit JPQL query to apply a lock.
+     *   Without @Query, @Lock won't attach properly to the SQL statement.
+     *
+     * WHY @Param("id")?
+     *   The :id placeholder in the query is filled with the value of
+     *   the 'id' parameter passed to this method, using @Param("id").
+     *
+     * IMPORTANT: This method MUST be called inside a @Transactional method.
+     *   Pessimistic locks only exist within an active database transaction.
+     *   When the transaction ends, the lock is automatically released.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Product p WHERE p.id = :id")
+    Optional<Product> findByIdForUpdate(@Param("id") Long id);
 }
