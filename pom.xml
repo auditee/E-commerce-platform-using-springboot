@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <!-- ============================================================ -->
+    <!-- SECTION 1: Basic project info                                -->
+    <!-- This tells Maven "what version of the POM format we use"     -->
+    <!-- ============================================================ -->
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ============================================================ -->
+    <!-- SECTION 2: Parent                                            -->
+    <!-- We inherit from Spring Boot's parent POM so we don't have to -->
+    <!-- manually specify versions for every Spring dependency.       -->
+    <!-- Think of it like a "starter kit" that comes pre-configured.  -->
+    <!-- ============================================================ -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.5</version>
+        <relativePath/> <!-- lookup parent from Maven repository -->
+    </parent>
+
+    <!-- ============================================================ -->
+    <!-- SECTION 3: Our project coordinates                           -->
+    <!-- groupId    = your company/org name (like a folder)           -->
+    <!-- artifactId = project name                                    -->
+    <!-- version    = current version of our app                      -->
+    <!-- packaging  = "jar" means we build a runnable .jar file       -->
+    <!-- ============================================================ -->
+    <groupId>com.ecommerce</groupId>
+    <artifactId>ecommerce-springboot</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>ecommerce-springboot</name>
+    <description>E-Commerce Backend with Spring Boot</description>
+    <packaging>jar</packaging>
+
+    <!-- ============================================================ -->
+    <!-- SECTION 4: Java version                                      -->
+    <!-- We are using Java 21 as the target LTS runtime for the app.  -->
+    <!-- ============================================================ -->
+    <properties>
+        <java.version>17</java.version>
+    </properties>
+
+    <!-- ============================================================ -->
+    <!-- SECTION 5: Dependencies                                      -->
+    <!-- These are external libraries (other people's code) that we   -->
+    <!-- plug into our project. Maven downloads them automatically.   -->
+    <!-- ============================================================ -->
+    <dependencies>
+
+        <!-- ======================================= -->
+        <!-- Spring Boot Starter Web                 -->
+        <!-- Lets us build REST APIs and run a web   -->
+        <!-- server (Tomcat) inside our app.         -->
+        <!-- ======================================= -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- ======================================= -->
+        <!-- Spring Boot Starter Data JPA            -->
+        <!-- Lets our Java code talk to the database  -->
+        <!-- without writing raw SQL queries.         -->
+        <!-- ======================================= -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- ======================================= -->
+        <!-- MySQL Connector                         -->
+        <!-- The driver/bridge that connects Java    -->
+        <!-- to our MySQL database.                  -->
+        <!-- ======================================= -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- ======================================= -->
+        <!-- Spring Boot Starter Security            -->
+        <!-- Adds login, password hashing, and       -->
+        <!-- protection to our APIs.                 -->
+        <!-- ======================================= -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- ======================================= -->
+        <!-- Spring Boot Starter Validation          -->
+        <!-- Lets us easily validate user input       -->
+        <!-- e.g. "email must not be empty".          -->
+        <!-- ======================================= -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- ======================================= -->
+        <!-- JJWT (Java JWT) - API, Impl, Jackson    -->
+        <!-- Library to create and verify JWT tokens  -->
+        <!-- (the digital keys for logged-in users).  -->
+        <!-- We need 3 parts: the API, the engine,    -->
+        <!-- and a JSON converter.                    -->
+        <!-- ======================================= -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.5</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.5</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.5</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- ======================================= -->
+        <!-- Lombok                                  -->
+        <!-- Reduces boilerplate code. Instead of     -->
+        <!-- writing 50 lines of getters/setters,     -->
+        <!-- we write one annotation: @Data           -->
+        <!-- ======================================= -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ======================================= -->
+        <!-- Spring Boot Starter Test                 -->
+        <!-- Tools for writing automated tests.       -->
+        <!-- Only used during testing, not in the     -->
+        <!-- final app (scope = test).                -->
+        <!-- ======================================= -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <!-- ============================================================ -->
+    <!-- SECTION 6: Build plugins                                     -->
+    <!-- The Spring Boot Maven plugin packages our app into a single  -->
+    <!-- runnable JAR file. The Lombok config tells the compiler to   -->
+    <!-- exclude Lombok from the final JAR (it's only needed during   -->
+    <!-- compilation).                                                -->
+    <!-- ============================================================ -->
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
