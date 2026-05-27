@@ -156,7 +156,19 @@ public class JwtService {
      * We decode it and create an HMAC-SHA key for signing/verifying tokens.
      */
     private SecretKey getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
-        return Keys.hmacShaKeyFor(keyBytes);
+        try {
+            byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+            return Keys.hmacShaKeyFor(keyBytes);
+        } catch (IllegalArgumentException e) {
+            // Fallback: If configured secret is not valid Base64, read its raw string bytes.
+            // HMAC-SHA256 requires key bytes to be at least 256 bits (32 bytes).
+            byte[] keyBytes = secretKey.getBytes();
+            if (keyBytes.length < 32) {
+                byte[] padded = new byte[32];
+                System.arraycopy(keyBytes, 0, padded, 0, keyBytes.length);
+                return Keys.hmacShaKeyFor(padded);
+            }
+            return Keys.hmacShaKeyFor(keyBytes);
+        }
     }
 }

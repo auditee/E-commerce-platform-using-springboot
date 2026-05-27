@@ -80,16 +80,16 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
 
                 // PUBLIC: Anyone can VIEW products (GET requests only)
-                .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
 
                 // ADMIN ONLY: Only admins can CREATE, UPDATE, DELETE products
-                .requestMatchers(HttpMethod.POST, "/api/products/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/products", "/api/products/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/products", "/api/products/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/products", "/api/products/**").hasRole("ADMIN")
 
                 // CART & ORDERS: Must be logged in (accessible by both USER and ADMIN)
-                .requestMatchers("/api/cart/**").authenticated()
-                .requestMatchers("/api/orders/**").authenticated()
+                .requestMatchers("/api/cart", "/api/cart/**").authenticated()
+                .requestMatchers("/api/orders", "/api/orders/**").authenticated()
 
                 // ALL OTHER REQUESTS: Must be logged in (any role)
                 .anyRequest().authenticated()

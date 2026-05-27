@@ -12,7 +12,11 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * ============================================================
@@ -109,23 +113,12 @@ public class OrderEventConsumer {
         Order order = orderRepository.findById(event.getOrderId()).orElse(null);
 
         if (order == null) {
-            // This should not happen normally, but we log it just in case.
             log.error("Order not found for orderId: {}. Skipping processing.", event.getOrderId());
             return;
         }
 
         // ─────────────────────────────────────────────────────
         // STEP 2: Duplicate processing protection
-        //
-        // WHY IS THIS NEEDED?
-        //   In rare cases, RabbitMQ may deliver the same message
-        //   twice (e.g. if the consumer crashes right after processing
-        //   but before acknowledging the message).
-        //   If we processed an already-CONFIRMED order again, we'd
-        //   reduce stock a second time — causing negative stock!
-        //
-        //   This check ensures we only process PENDING orders.
-        //   If the order is already CONFIRMED or FAILED, we skip it.
         // ─────────────────────────────────────────────────────
         if (!order.getStatus().equals(OrderStatus.PENDING)) {
             log.info("Order {} is already in status '{}'. Skipping duplicate processing.",
@@ -137,22 +130,21 @@ public class OrderEventConsumer {
                 order.getId(), order.getOrderItems().size());
 
         // ─────────────────────────────────────────────────────
-        // STEP 3: Stock validation with pessimistic locking
-        //
-        // WHY PESSIMISTIC LOCKING HERE?
-        //   The consumer runs in a background thread.
-        //   If two orders for the same product are processed
-        //   at the same time, they could both pass the stock check
-        //   and both reduce stock — causing negative stock!
-        //
-        //   findByIdForUpdate() runs: SELECT * FROM products WHERE id = ? FOR UPDATE
-        //   This LOCKS the product row. Only one consumer thread can
-        //   hold the lock at a time. The other must wait.
-        //   This is the same protection we had in the synchronous flow.
+        // STEP 3: Sort order items by productId to prevent deadlocks
         // ─────────────────────────────────────────────────────
-        for (OrderItem item : order.getOrderItems()) {
+        List<OrderItem> sortedItems = order.getOrderItems().stream()
+                .sorted(Comparator.comparing(item -> item.getProduct().getId()))
+                .collect(Collectors.toList());
+
+        // ─────────────────────────────────────────────────────
+        // STEP 4: Stock validation with pessimistic locking
+        // ─────────────────────────────────────────────────────
+        Map<Long, Product> lockedProductsMap = new HashMap<>();
+
+        for (OrderItem item : sortedItems) {
             Long productId = item.getProduct().getId();
 
+            log.info("Attempting to acquire pessimistic write lock for product id: {} (Order: {})", productId, order.getId());
             Product product = productRepository.findByIdForUpdate(productId).orElse(null);
 
             if (product == null) {
@@ -160,8 +152,12 @@ public class OrderEventConsumer {
                         productId, order.getId());
                 order.setStatus(OrderStatus.FAILED);
                 orderRepository.save(order);
+                log.info("Order {} status changed to FAILED because product was not found.", order.getId());
                 return;
             }
+
+            log.info("Pessimistic write lock successfully acquired for product '{}' (id: {}). Current stock: {}", 
+                    product.getName(), productId, product.getStockQuantity());
 
             // Check if stock is enough for this item
             if (product.getStockQuantity() < item.getQuantity()) {
@@ -173,33 +169,27 @@ public class OrderEventConsumer {
                 order.setStatus(OrderStatus.FAILED);
                 orderRepository.save(order);
 
-                log.info("Order {} marked as FAILED due to insufficient stock.", order.getId());
+                log.info("Order {} status changed to FAILED due to insufficient stock for product id: {}.", order.getId(), productId);
                 return; // Stop processing — don't touch any other products
             }
+
+            // Cache the locked product to reuse in the reduction step
+            lockedProductsMap.put(productId, product);
         }
 
         // ─────────────────────────────────────────────────────
-        // STEP 4: All stock checks passed — reduce stock
-        //
-        // We only reach here if EVERY item has enough stock.
-        // Now we do the actual reductions in a second pass.
-        //
-        // WHY TWO PASSES (check first, then reduce)?
-        //   If we reduced stock item by item and then found an
-        //   insufficient item midway through, we'd have partially
-        //   reduced stock — an inconsistent state!
-        //   By checking ALL items first, we ensure we only reduce
-        //   stock when we're 100% sure the whole order can succeed.
+        // STEP 5: All stock checks passed — reduce stock
         // ─────────────────────────────────────────────────────
-        log.info("All stock checks passed for orderId: {}. Reducing stock.", order.getId());
+        log.info("Stock validation successful for orderId: {}. Reducing stock.", order.getId());
 
-        for (OrderItem item : order.getOrderItems()) {
+        for (OrderItem item : sortedItems) {
             Long productId = item.getProduct().getId();
+            Product product = lockedProductsMap.get(productId);
 
-            // Fetch with lock again for the actual update
-            Product product = productRepository.findByIdForUpdate(productId)
-                    .orElseThrow(() -> new RuntimeException(
-                            "Product disappeared during processing: " + productId));
+            if (product == null) {
+                log.error("Product id {} not found in locked products cache map during reduction. This should not happen.", productId);
+                throw new RuntimeException("Product not found in locked products cache map: " + productId);
+            }
 
             int newStock = product.getStockQuantity() - item.getQuantity();
             product.setStockQuantity(newStock);
@@ -210,21 +200,14 @@ public class OrderEventConsumer {
         }
 
         // ─────────────────────────────────────────────────────
-        // STEP 5: Mark order as CONFIRMED
+        // STEP 6: Mark order as CONFIRMED
         // ─────────────────────────────────────────────────────
         order.setStatus(OrderStatus.CONFIRMED);
         orderRepository.save(order);
-        log.info("Order {} successfully CONFIRMED.", order.getId());
+        log.info("Order {} status changed to CONFIRMED.", order.getId());
 
         // ─────────────────────────────────────────────────────
-        // STEP 6: Clear the user's cart
-        //
-        // WHY CLEAR CART ONLY HERE (AFTER CONFIRMED)?
-        //   If we cleared the cart in OrderService (during placeOrder),
-        //   and then the consumer marks the order FAILED, the user's
-        //   cart would already be gone — they'd lose their items!
-        //   By clearing ONLY after CONFIRMED, the cart remains intact
-        //   if the order fails, and the user can retry.
+        // STEP 7: Clear the user's cart
         // ─────────────────────────────────────────────────────
         Cart cart = cartRepository.findByUserId(event.getUserId()).orElse(null);
         if (cart != null) {
