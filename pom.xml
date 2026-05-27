@@ -152,6 +152,18 @@
         </dependency>
 
         <!-- ======================================= -->
+        <!-- Spring Boot Starter AMQP (RabbitMQ)    -->
+        <!-- Gives us RabbitMQ messaging support.    -->
+        <!-- AMQP = Advanced Message Queuing Protocol-->
+        <!-- This lets our app send and receive      -->
+        <!-- messages through RabbitMQ queues.       -->
+        <!-- ======================================= -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
+        <!-- ======================================= -->
         <!-- Spring Boot Starter Test                 -->
         <!-- Tools for writing automated tests.       -->
         <!-- Only used during testing, not in the     -->
