@@ -127,7 +127,8 @@ public class OrderService {
                 .user(user)
                 .shippingAddress(request.getShippingAddress())
                 .phoneNumber(request.getPhoneNumber())
-                .status(OrderStatus.PENDING)        // ← Key change: PENDING, not CONFIRMED
+                .status(OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(PaymentStatus.UNPAID)
                 .orderDate(LocalDateTime.now())
                 .totalAmount(BigDecimal.ZERO)
                 .orderItems(new ArrayList<>())
@@ -178,37 +179,16 @@ public class OrderService {
 
         // ─────────────────────────────────────────────────────
         // STEP 7: Save the order to MySQL
-        //
-        // IMPORTANT: We MUST save the order BEFORE publishing the event.
-        // The consumer will try to fetch the order by orderId.
-        // If we haven't saved it yet, the consumer won't find it!
         // ─────────────────────────────────────────────────────
         Order savedOrder = orderRepository.save(order);
-        log.info("Order {} created with status PENDING for user: {}", savedOrder.getId(), userEmail);
+        log.info("Order {} created with status PENDING_PAYMENT for user: {}", savedOrder.getId(), userEmail);
 
         // ─────────────────────────────────────────────────────
-        // STEP 8: Publish the OrderCreatedEvent to RabbitMQ
-        //
-        // This is like dropping a letter in the post office.
-        // The letter (event) contains the orderId and userId.
-        // The post office (RabbitMQ) will deliver it to the consumer.
-        // The consumer will then do the actual stock checking + reduction.
-        //
-        // AFTER this line returns, the user gets their response.
-        // The consumer processes the event in the background.
+        // STEP 8: Return the OrderResponse with PENDING_PAYMENT status
         // ─────────────────────────────────────────────────────
-        OrderCreatedEvent event = OrderCreatedEvent.builder()
-                .orderId(savedOrder.getId())
-                .userId(user.getId())
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        orderEventPublisher.publishOrderCreatedEvent(event);
-
-        // ─────────────────────────────────────────────────────
-        // STEP 9: Return the OrderResponse with PENDING status
-        // ─────────────────────────────────────────────────────
-        return mapToOrderResponse(savedOrder);
+        OrderResponse response = mapToOrderResponse(savedOrder);
+        response.setMessage("Order created. Complete payment to process the order.");
+        return response;
     }
 
     /**
@@ -270,7 +250,11 @@ public class OrderService {
                 .userName(order.getUser().getName())
                 .items(itemResponses)
                 .totalAmount(order.getTotalAmount())
-                .status(order.getStatus().name())   // Will show PENDING initially
+                .status(order.getStatus().name())
+                .paymentStatus(order.getPaymentStatus() != null ? order.getPaymentStatus().name() : null)
+                .paymentMode(order.getPaymentMode())
+                .paymentReference(order.getPaymentReference())
+                .paidAt(order.getPaidAt())
                 .shippingAddress(order.getShippingAddress())
                 .phoneNumber(order.getPhoneNumber())
                 .orderDate(order.getOrderDate())

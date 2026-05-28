@@ -57,11 +57,35 @@ public class Order {
     private BigDecimal totalAmount;
 
     /**
-     * The status of the order (PENDING, CONFIRMED, CANCELLED).
+     * The status of the order (PENDING_PAYMENT, PENDING, CONFIRMED, CANCELLED).
      */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private OrderStatus status;
+
+    /**
+     * The payment status of the order (UNPAID, PAID, FAILED).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private PaymentStatus paymentStatus;
+
+    /**
+     * The mode of payment used (e.g. SIMULATED, STRIPE).
+     */
+    @Column(length = 50)
+    private String paymentMode;
+
+    /**
+     * The payment provider reference ID (e.g. transaction reference).
+     */
+    @Column(length = 100)
+    private String paymentReference;
+
+    /**
+     * The timestamp of when payment was successfully processed.
+     */
+    private LocalDateTime paidAt;
 
     /**
      * The shipping address for this order.
@@ -93,6 +117,9 @@ public class Order {
         updatedAt = LocalDateTime.now();
         if (orderDate == null) {
             orderDate = LocalDateTime.now();
+        }
+        if (paymentStatus == null) {
+            paymentStatus = PaymentStatus.UNPAID;
         }
     }
 

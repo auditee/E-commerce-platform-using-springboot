@@ -51,9 +51,14 @@ package com.ecommerce.entity;
 public enum OrderStatus {
 
     /**
-     * Order is created but not yet processed.
-     * This is the initial state when a user places an order.
-     * The order event is sitting in the RabbitMQ queue.
+     * Order is created but waiting for payment completion.
+     * Initial status for orders placed by users.
+     */
+    PENDING_PAYMENT,
+
+    /**
+     * Order is paid and waiting to be processed by RabbitMQ consumer.
+     * The order event is sitting in the queue.
      */
     PENDING,
 

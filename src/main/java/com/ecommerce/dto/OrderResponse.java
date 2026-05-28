@@ -26,6 +26,11 @@ public class OrderResponse {
     private List<OrderItemResponse> items;
     private BigDecimal totalAmount;
     private String status;
+    private String paymentStatus;
+    private String paymentMode;
+    private String paymentReference;
+    private LocalDateTime paidAt;
+    private String message;
     private String shippingAddress;
     private String phoneNumber;
     private LocalDateTime orderDate;

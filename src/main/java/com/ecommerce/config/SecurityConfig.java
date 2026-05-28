@@ -87,9 +87,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PUT, "/api/products", "/api/products/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/products", "/api/products/**").hasRole("ADMIN")
 
-                // CART & ORDERS: Must be logged in (accessible by both USER and ADMIN)
+                // CART, ORDERS & PAYMENTS: Must be logged in (accessible by both USER and ADMIN)
                 .requestMatchers("/api/cart", "/api/cart/**").authenticated()
                 .requestMatchers("/api/orders", "/api/orders/**").authenticated()
+                .requestMatchers("/api/payments", "/api/payments/**").authenticated()
 
                 // ALL OTHER REQUESTS: Must be logged in (any role)
                 .anyRequest().authenticated()
